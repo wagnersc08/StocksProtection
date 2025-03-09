@@ -7,9 +7,7 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
-import subprocess
-import sys
-import talib as ta  # Biblioteca para indicadores técnicos (substituindo pandas_ta)
+import pandas_ta as ta  # Biblioteca para indicadores técnicos
 
 # Função para gerar recomendações individuais para cada indicador
 def analyze_indicator(indicator, value, history):
@@ -52,15 +50,15 @@ def analyze_stock(ticker):
     if history.empty or len(history) < 20:
         raise ValueError(f"Dados insuficientes para o ticker {ticker}.")
 
-    # Calcular indicadores
-    history['MA_9'] = ta.SMA(history['Close'], timeperiod=9)
-    history['MA_20'] = ta.SMA(history['Close'], timeperiod=20)
-    history['MA_50'] = ta.SMA(history['Close'], timeperiod=50)
-    history['MA_200'] = ta.SMA(history['Close'], timeperiod=200)
-    history['MACD'], _, _ = ta.MACD(history['Close'], fastperiod=12, slowperiod=26, signalperiod=9)
-    history['RSI'] = ta.RSI(history['Close'], timeperiod=14)
-    history['OBV'] = ta.OBV(history['Close'], history['Volume'])
-    history['MFI'] = ta.MFI(history['High'], history['Low'], history['Close'], history['Volume'], timeperiod=14)
+    # Calcular indicadores com pandas_ta
+    history['MA_9'] = ta.sma(history['Close'], 9)
+    history['MA_20'] = ta.sma(history['Close'], 20)
+    history['MA_50'] = ta.sma(history['Close'], 50)
+    history['MA_200'] = ta.sma(history['Close'], 200)
+    history['MACD'] = ta.macd(history['Close'])['MACD_12_26_9']
+    history['RSI'] = ta.rsi(history['Close'])
+    history['OBV'] = ta.obv(history['Close'], history['Volume'])
+    history['MFI'] = ta.mfi(history['High'], history['Low'], history['Close'], history['Volume'], length=14)
 
     # Tendência diária e semanal
     daily_trend = "alta" if history['Close'][-1] > history['Close'][-2] else "baixa"
