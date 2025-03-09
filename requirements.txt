@@ -3,3 +3,4 @@ yfinance==0.2.3
 pandas==1.5.3
 numpy==1.23.5
 pandas_ta==0.3.14b0
+altair==5.5.0
