@@ -11,9 +11,6 @@ import subprocess
 import sys
 import pandas_ta as ta  # Biblioteca para indicadores técnicos
 
-!pip install setuptools
-!pip install --upgrade --force-reinstall pandas_ta
-
 # Função para gerar recomendações individuais para cada indicador
 def analyze_indicator(indicator, value, history):
     if indicator == "MA_9_20":
