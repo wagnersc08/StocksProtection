@@ -7,7 +7,11 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
-import pandas_ta as ta  # Biblioteca para indicadores técnicos
+import subprocess
+import sys
+#import pandas_ta as ta  # Biblioteca para indicadores técnicos
+
+subprocess.check_call([sys.executable, "-m", "pip", "install", "pandas==1.3.3"])
 
 # Função para gerar recomendações individuais para cada indicador
 def analyze_indicator(indicator, value, history):
