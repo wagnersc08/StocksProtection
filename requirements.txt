@@ -5,3 +5,4 @@ numpy==1.23.5
 pandas_ta==0.3.14b0
 altair==5.0.0
 protobuf==3.20.3
+distutils==1.0.0
