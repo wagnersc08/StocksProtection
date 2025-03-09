@@ -1,7 +1,7 @@
 yfinance
 streamlit
-numpy==1.25
+numpy==1.25.0
 pandas==2.0.3
 pandas_ta==0.3.14b0
 pip>=25.0.1
-setuptools>=76.0.0
+setuptools>=69.5.1
