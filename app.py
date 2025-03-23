@@ -4,7 +4,6 @@ Created on Sun Mar 23 20:34:25 2025
 
 @author: wag08
 """
-
 import yfinance as yf
 import pandas as pd
 import streamlit as st
@@ -25,7 +24,7 @@ def calculate_moving_averages(data, short_window=9, long_window=21, ma50_window=
 
 # Função para gerar recomendações com base nas médias móveis
 def generate_recommendation(data):
-    last_row = data.iloc[-1]
+    last_row = data.iloc[-1]  # Pega a última linha do DataFrame
     
     # Recomendação para MA de 9 e 21
     if last_row['MA_9'] > last_row['MA_21']:
