@@ -7,145 +7,96 @@ Created on Sun Mar 23 20:34:25 2025
 
 import yfinance as yf
 import pandas as pd
-import pandas_ta as ta
-import numpy as np
 import streamlit as st
 
-# Configurações iniciais
-np.NaN = np.nan
+# Tickers padrão
 DEFAULT_TICKERS = [
-    "BBAS3.SA", "BCIA11.SA", "BOVA11.SA", "BTLG11.SA", "CMIG4.SA"]
+    "BBAS3.SA", "BCIA11.SA", "BOVA11.SA", "BTLG11.SA", "CMIG4.SA", 
+    "CSMG3.SA", "DIVO11.SA", "HASH11.SA", "HCTR11.SA", "HGBS11.SA"
+]
 
-# Função para gerar recomendações individuais para cada indicador
-def analyze_indicator(indicator, value, history):
-    if indicator == "MA_9_20":
-        return "🟢 Compra" if value["MA_9"] > value["MA_20"] else "🔴 Venda"
-    elif indicator == "MA_50_200":
-        return "🟢 Compra" if value["MA_50"] > value["MA_200"] else "🔴 Venda"
-    elif indicator == "MACD":
-        return "🟢 Compra" if value > 0 else "🔴 Venda"
-    elif indicator == "RSI":
-        if value < 30:
-            return "🟢 Compra"
-        elif value > 70:
-            return "🔴 Venda"
-        else:
-            return "⚪ Neutro"
-    elif indicator == "OBV":
-        return "🟢 Compra" if value > history['OBV'].iloc[-2] else "🔴 Venda"
-    elif indicator == "MFI":
-        if value < 20:
-            return "🟢 Compra"
-        elif value > 80:
-            return "🔴 Venda"
-        else:
-            return "⚪ Neutro"
-    elif indicator == "DMI":
-        return "🟢 Compra" if value["DI+"] > value["DI-"] else "🔴 Venda"
+# Função para calcular médias móveis
+def calculate_moving_averages(data, short_window=9, long_window=21, ma50_window=50, ma200_window=200):
+    data['MA_9'] = data['Close'].rolling(window=short_window, min_periods=1).mean()
+    data['MA_21'] = data['Close'].rolling(window=long_window, min_periods=1).mean()
+    data['MA_50'] = data['Close'].rolling(window=ma50_window, min_periods=1).mean()
+    data['MA_200'] = data['Close'].rolling(window=ma200_window, min_periods=1).mean()
+    return data
+
+# Função para gerar recomendações com base nas médias móveis
+def generate_recommendation(data):
+    last_row = data.iloc[-1]
+    
+    # Recomendação para MA de 9 e 21
+    if last_row['MA_9'] > last_row['MA_21']:
+        ma_9_21_rec = "🟢 Compra (MA 9 > MA 21)"
     else:
-        return "⚪ Neutro"
-
-# Função para determinar a tendência (alta ou baixa)
-def determine_trend(history):
-    if history['Close'].iloc[-1] > history['MA_50'].iloc[-1]:
-        return "🟢 Tendência de Alta"
+        ma_9_21_rec = "🔴 Venda (MA 9 < MA 21)"
+    
+    # Recomendação para MA de 50 e 200
+    if last_row['MA_50'] > last_row['MA_200']:
+        ma_50_200_rec = "🟢 Compra (MA 50 > MA 200)"
     else:
-        return "🔴 Tendência de Baixa"
+        ma_50_200_rec = "🔴 Venda (MA 50 < MA 200)"
+    
+    return ma_9_21_rec, ma_50_200_rec
 
-# Função para verificar cruzamento de suporte/resistência
-def check_support_resistance(history):
-    recent_high = history['High'].rolling(window=50).max().iloc[-1]
-    recent_low = history['Low'].rolling(window=50).min().iloc[-1]
-    close_price = history['Close'].iloc[-1]
-
-    if close_price > recent_high:
-        return f"🟢 Cruzou Resistência: {round(recent_high, 2)}"
-    elif close_price < recent_low:
-        return f"🔴 Cruzou Suporte: {round(recent_low, 2)}"
-    else:
-        return "⚪ Sem cruzamento importante"
-
-# Função para gerar conclusão geral
-def generate_conclusion(recommendations):
-    buy_count = sum(1 for key, value in recommendations.items() if isinstance(value, tuple) and "🟢 Compra" in value)
-    sell_count = sum(1 for key, value in recommendations.items() if isinstance(value, tuple) and "🔴 Venda" in value)
-    neutral_count = sum(1 for key, value in recommendations.items() if isinstance(value, tuple) and "⚪ Neutro" in value)
-
-    if buy_count > sell_count and buy_count > neutral_count:
-        return "🟢 Conclusão Geral: Compra"
-    elif sell_count > buy_count and sell_count > neutral_count:
-        return "🔴 Conclusão Geral: Venda"
-    else:
-        return "⚪ Conclusão Geral: Neutro"
-
-# Função para calcular indicadores e gerar recomendação
-def analyze_stock(ticker):
+# Função principal para analisar um ticker
+def analyze_ticker(ticker):
     try:
-        stock = yf.Ticker(ticker)
-        history = stock.history(period="1y")
-
-        if history.empty or len(history) < 20:
-            raise ValueError(f"Dados insuficientes para o ticker {ticker}.")
-
-        required_columns = ['High', 'Low', 'Close', 'Volume']
-        if not all(col in history.columns for col in required_columns):
-            raise ValueError(f"Colunas necessárias não encontradas no histórico: {required_columns}")
-
-        if history[required_columns].isnull().any().any():
-            raise ValueError(f"Dados históricos contêm valores NaN para o ticker {ticker}.")
-
-        history['MA_9'] = ta.sma(history['Close'], length=9)
-        history['MA_20'] = ta.sma(history['Close'], length=20)
-        history['MA_50'] = ta.sma(history['Close'], length=50)
-        history['MA_200'] = ta.sma(history['Close'], length=200)
-        history['MACD'] = ta.macd(history['Close'])['MACD_12_26_9']
-        history['RSI'] = ta.rsi(history['Close'], length=14)
-        history['OBV'] = ta.obv(history['Close'], history['Volume'])
-        history['MFI'] = ta.mfi(history['High'], history['Low'], history['Close'], history['Volume'], length=14)
-        dmi = ta.adx(history['High'], history['Low'], history['Close'], length=14)
-        history['DI+'] = dmi['DMP_14']
-        history['DI-'] = dmi['DMN_14']
-
-        recommendations = {
-            "MA_9_20": (round(history['MA_9'].iloc[-1], 2), round(history['MA_20'].iloc[-1], 2), analyze_indicator("MA_9_20", {"MA_9": history['MA_9'].iloc[-1], "MA_20": history['MA_20'].iloc[-1]}, history)),
-            "MA_50_200": (round(history['MA_50'].iloc[-1], 2), round(history['MA_200'].iloc[-1], 2), analyze_indicator("MA_50_200", {"MA_50": history['MA_50'].iloc[-1], "MA_200": history['MA_200'].iloc[-1]}, history)),
-            "MACD": (round(history['MACD'].iloc[-1], 2), analyze_indicator("MACD", history['MACD'].iloc[-1], history)),
-            "RSI": (round(history['RSI'].iloc[-1], 2), analyze_indicator("RSI", history['RSI'].iloc[-1], history)),
-            "OBV": (round(history['OBV'].iloc[-1], 2), analyze_indicator("OBV", history['OBV'].iloc[-1], history)),
-            "MFI": (round(history['MFI'].iloc[-1], 2), analyze_indicator("MFI", history['MFI'].iloc[-1], history)),
-            "DMI": (round(history['DI+'].iloc[-1], 2), round(history['DI-'].iloc[-1], 2), analyze_indicator("DMI", {"DI+": history['DI+'].iloc[-1], "DI-": history['DI-'].iloc[-1]}, history)),
-            "Tendência": determine_trend(history),
-            "Suporte/Resistência": check_support_resistance(history),
+        # Baixar dados históricos
+        data = yf.download(ticker, period="1y")
+        if data.empty:
+            return f"Erro: Dados insuficientes para o ticker {ticker}."
+        
+        # Calcular médias móveis
+        data = calculate_moving_averages(data)
+        
+        # Gerar recomendações
+        ma_9_21_rec, ma_50_200_rec = generate_recommendation(data)
+        
+        # Retornar resultados
+        return {
+            "Ticker": ticker,
+            "MA 9 > 21": ma_9_21_rec,
+            "MA 50 > 200": ma_50_200_rec,
+            "Preço Atual": round(data['Close'].iloc[-1], 2),
+            "MA 9": round(data['MA_9'].iloc[-1], 2),
+            "MA 21": round(data['MA_21'].iloc[-1], 2),
+            "MA 50": round(data['MA_50'].iloc[-1], 2),
+            "MA 200": round(data['MA_200'].iloc[-1], 2),
         }
-
-        conclusion = generate_conclusion(recommendations)
-
-        return {"ticker": ticker, "recommendations": recommendations, "conclusion": conclusion}
     except Exception as e:
-        raise ValueError(f"Erro ao analisar o ticker {ticker}: {str(e)}")
+        return f"Erro ao analisar o ticker {ticker}: {str(e)}"
 
 # Interface do Streamlit
-st.title("Análise de Ações")
+st.title("Análise de Tickers com Médias Móveis")
 
-tickers = st.text_input("Digite os tickers separados por vírgula", ", ".join(DEFAULT_TICKERS))
-tickers = [t.strip() for t in tickers.split(",")] if tickers else DEFAULT_TICKERS
+# Entrada de tickers
+tickers_input = st.text_input(
+    "Digite os tickers separados por vírgula (ou use os padrão):", 
+    ", ".join(DEFAULT_TICKERS)
+)
+tickers = [t.strip() for t in tickers_input.split(",")] if tickers_input else DEFAULT_TICKERS
 
+# Botão para analisar
 if st.button("Analisar"):
     results = []
     for ticker in tickers:
-        try:
-            result = analyze_stock(ticker)
-            results.append(result)
-        except Exception as e:
-            st.error(f"Erro ao analisar {ticker}: {e}")
-
-    if results:
-        for res in results:
-            st.write(f"📊 **{res['ticker']}**:")
-            for key, values in res["recommendations"].items():
-                if isinstance(values, str):
-                    st.write(f"• **{key}**: {values}")
-                else:
-                    st.write(f"• **{key}**: valor: {values[0]}, recomendação: {values[-1]}")
-            st.write(f"**{res['conclusion']}**")
+        result = analyze_ticker(ticker)
+        results.append(result)
+    
+    # Exibir resultados
+    for res in results:
+        if isinstance(res, dict):
+            st.write(f"📊 **{res['Ticker']}**")
+            st.write(f"💰 **Preço Atual**: {res['Preço Atual']}")
+            st.write(f"📈 **MA 9**: {res['MA 9']}")
+            st.write(f"📈 **MA 21**: {res['MA 21']}")
+            st.write(f"📈 **MA 50**: {res['MA 50']}")
+            st.write(f"📈 **MA 200**: {res['MA 200']}")
+            st.write(f"✅ **Recomendação (MA 9 vs 21)**: {res['MA 9 > 21']}")
+            st.write(f"✅ **Recomendação (MA 50 vs 200)**: {res['MA 50 > 200']}")
             st.write("---")
+        else:
+            st.error(res)  # Exibe mensagens de erro
