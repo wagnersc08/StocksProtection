@@ -6,7 +6,11 @@ import streamlit as st
 # Tickers padrão
 DEFAULT_TICKERS = [
     "BBAS3.SA", "BCIA11.SA", "BOVA11.SA", "BTLG11.SA", "CMIG4.SA", 
-    "CSMG3.SA", "DIVO11.SA", "HASH11.SA", "HCTR11.SA", "HGBS11.SA"
+    "CSMG3.SA", "DIVO11.SA", "HASH11.SA", "HCTR11.SA", "HGBS11.SA",
+    'TRPL4.SA','ITSA4.SA','ITUB4.SA','KFOF11.SA','LEVE3.SA','PETR4.SA',
+    'RBRF11.SA','SAPR4.SA','SMAL11.SA','TRXF11.SA','VALE3.SA','VISC11.SA','XFIX11.SA','XPML11.SA',   
+    'VOO','TLT','SCHD','BRK-B','XOP','CIBR','QQQ','DRIV','ICLN',
+    'MSFT','NKE','ADBE','AMAT','ISRG','BTC-USDT','ETH-USDT'
 ]
 
 # Função para calcular médias móveis manualmente
@@ -110,6 +114,3 @@ if st.button("Analisar"):
             st.write(f"✅ **Recomendação (MA 50 vs 200)**: {res['MA 50 > 200']}")
             st.write("---")
         
-        # Exibir gráfico
-        st.write("### Gráfico de Preço e Médias Móveis")
-        st.line_chart(data[['Close', 'MA_9', 'MA_21', 'MA_50', 'MA_200']])
