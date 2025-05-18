@@ -13,54 +13,50 @@ DEFAULT_TICKERS = [
     'MSFT','NKE','ADBE','AMAT','ISRG','BTC-USD','ETH-USD'
 ]
 
-# Função para calcular médias móveis manualmente
+# Função para calcular médias móveis
 def calculate_moving_averages(data, windows=[9, 21, 50, 200]):
-    try:
-        
-        # Calcula as médias móveis para cada período
-        for window in windows:
-            column_name = f"MA_{window}"
-            data[column_name] = data['Close'].rolling(window=window, min_periods=1).mean()
-        
-        return data
-    except Exception as e:
-        raise ValueError(f"Erro ao calcular médias móveis: {str(e)}")
+    for window in windows:
+        column_name = f"MA_{window}"
+        data[column_name] = data['Close'].rolling(window=window, min_periods=1).mean()
+    return data
 
-# Função para gerar recomendações com base nas médias móveis
+# Função para calcular RSI manualmente
+def calculate_rsi(data, window=14):
+    delta = data['Close'].diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+    avg_gain = gain.rolling(window=window, min_periods=window).mean()
+    avg_loss = loss.rolling(window=window, min_periods=window).mean()
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+    data['RSI'] = rsi
+    return data
+
+# Função para gerar recomendações
 def generate_recommendation(data):
-    """
-    Gera recomendações de compra/venda com base nas médias móveis.
+    last_row = data.iloc[-1]
     
-    Parâmetros:
-        data (pd.DataFrame): DataFrame contendo as colunas de médias móveis.
+    # Médias móveis
+    ma_9_21_rec = "🟢 Compra (MA 9 > MA 21)" if last_row['MA_9'] > last_row['MA_21'] else "🔴 Venda (MA 9 < MA 21)"
+    ma_50_200_rec = "🟢 Compra (MA 50 > MA 200)" if last_row['MA_50'] > last_row['MA_200'] else "🔴 Venda (MA 50 < MA 200)"
     
-    Retorna:
-        dict: Dicionário com as recomendações.
-    """
-    try:
-        last_row = data.iloc[-1]  # Pega a última linha do DataFrame
-        
-        # Recomendação para MA de 9 e 21
-        if last_row['MA_9'] > last_row['MA_21']:
-            ma_9_21_rec = "🟢 Compra (MA 9 > MA 21)"
-        else:
-            ma_9_21_rec = "🔴 Venda (MA 9 < MA 21)"
-        
-        # Recomendação para MA de 50 e 200
-        if last_row['MA_50']> last_row['MA_200']:
-            ma_50_200_rec = "🟢 Compra (MA 50 > MA 200)"
-        else:
-            ma_50_200_rec = "🔴 Venda (MA 50 < MA 200)"
-        
-        return {
-            "MA 9 > 21": ma_9_21_rec,
-            "MA 50 > 200": ma_50_200_rec,
-        }
-    except Exception as e:
-        raise ValueError(f"Erro ao gerar recomendações: {str(e)}")
+    # RSI
+    if last_row['RSI'] < 30:
+        rsi_rec = "🟢 RSI < 30: sobrevenda (compra)"
+    elif last_row['RSI'] > 70:
+        rsi_rec = "🔴 RSI > 70: sobrecompra (evitar)"
+    else:
+        rsi_rec = "🟡 RSI neutro"
+
+    return {
+        "MA 9 > 21": ma_9_21_rec,
+        "MA 50 > 200": ma_50_200_rec,
+        "RSI": round(last_row['RSI'], 2),
+        "Recomendação RSI": rsi_rec,
+    }
 
 # Interface do Streamlit
-st.title("Análise de Tickers com Médias Móveis")
+st.title("Análise Técnica de Tickers com Médias Móveis e RSI")
 
 # Entrada de tickers
 tickers_input = st.text_input(
@@ -73,7 +69,6 @@ if st.button("Analisar"):
     results = []
     for ticker in tickers:
         try:
-            # Baixar dados históricos
             data = yf.download(ticker, period="1y")
             data = data.droplevel(level=1, axis=1)
             
@@ -81,13 +76,11 @@ if st.button("Analisar"):
                 st.error(f"Não foi possível baixar dados para o ticker {ticker}.")
                 continue
             
-            # Calcular médias móveis
+            # Cálculos
             data = calculate_moving_averages(data)
-            
-            # Gerar recomendações
+            data = calculate_rsi(data)
             recommendations = generate_recommendation(data)
-            
-            # Retornar resultados
+
             results.append({
                 "Ticker": ticker,
                 "Preço Atual": round(data['Close'].iloc[-1], 2),
@@ -100,7 +93,6 @@ if st.button("Analisar"):
         except Exception as e:
             st.error(f"Erro ao analisar o ticker {ticker}: {str(e)}")
     
-    # Exibir resultados
     if results:
         st.write("### Resultados da Análise")
         for res in results:
@@ -112,5 +104,6 @@ if st.button("Analisar"):
             st.write(f"📈 **MA 200**: {res['MA 200']}")
             st.write(f"✅ **Recomendação (MA 9 vs 21)**: {res['MA 9 > 21']}")
             st.write(f"✅ **Recomendação (MA 50 vs 200)**: {res['MA 50 > 200']}")
+            st.write(f"📊 **RSI (14)**: {res['RSI']}")
+            st.write(f"📌 **Recomendação RSI**: {res['Recomendação RSI']}")
             st.write("---")
-        
